@@ -1,0 +1,25 @@
+[project]
+name = "yql-x-server"
+version = "2.0.0"
+description = "Weather and Stocks backend for legacy iOS (5-7) devices"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "GPL-3.0-or-later" }
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "httpx>=0.28",
+    "jinja2>=3.1",
+    "iso3166>=2.1",
+    "yfinance>=0.2.66",
+]
+
+[project.scripts]
+yql-x-server = "yql_x_server.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["yql_x_server"]

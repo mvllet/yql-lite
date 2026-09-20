@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Misc
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.old
+*~
+
+# Python
+__pycache__/
+env/
+venv/
+.venv/
+*.pyc
+places.db

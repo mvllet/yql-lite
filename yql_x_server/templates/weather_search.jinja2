@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<query xmlns:yahoo="http://www.yahooapis.com/v1/base.rng" yahoo:count="{{ results|length }}" yahoo:created="{{ created }}" yahoo:lang="en-US">
+<results>
+{% for r in results %}
+<location city="{{ r.city }}" country="{{ r.country_name }}" countryAbbr="{{ r.country_alpha3 }}" locationID="{{ r.location_id }}" woeid="{{ r.woeid }}"/>
+{% endfor %}
+</results>
+</query>
