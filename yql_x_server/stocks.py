@@ -1,11 +1,3 @@
-"""Stocks.app data, pulled from Yahoo through yfinance.
-
-Everything here is defensive. yfinance reshapes its payloads often, and the
-news feed in particular has had two different layouts. Missing fields become
-zeros rather than exceptions, because a quote with a blank market cap still
-renders in Stocks.app while a 500 shows nothing at all.
-"""
-
 from datetime import datetime, timezone
 from xml.sax.saxutils import escape
 from zoneinfo import ZoneInfo
@@ -19,19 +11,19 @@ _quote_cache = TTLCache(ttl=settings.stocks_ttl)
 _chart_cache = TTLCache(ttl=3600)
 
 RANGES = {
-    "1d": ("1d", "15m"),
-    "5d": ("5d", "15m"),
-    "1m": ("1mo", "1d"),
-    "3m": ("3mo", "1d"),
-    "6m": ("6mo", "1wk"),
-    "1y": ("1y", "1wk"),
-    "2y": ("2y", "1wk"),
+    "1d": ("1d", "1m"),
+    "5d": ("5d", "5m"),
+    "1m": ("1mo", "15m"),
+    "3m": ("3mo", "1h"),
+    "6m": ("6mo", "1h"),
+    "1y": ("1y", "1d"),
+    "2y": ("2y", "1d"),
     "5y": ("5y", "1wk"),
-    "10y": ("10y", "1mo"),
+    "10y": ("10y", "1wk"),
 }
 
 
-def _number(value, default=0):
+def _num(value, default=0):
     try:
         if value is None:
             return default
@@ -40,11 +32,21 @@ def _number(value, default=0):
         return default
 
 
-def _fast(fast_info, key, default=0):
+def _pick(fast, info, fast_key, info_key, default=0):
     try:
-        return _number(fast_info[key], default)
+        value = fast[fast_key]
+        if value is not None:
+            return _num(value, default)
     except Exception:
-        return default
+        pass
+    return _num(info.get(info_key), default)
+
+
+def _change_percent(current, previous):
+    if not previous or current == previous:
+        return "0%"
+    sign = "+" if current > previous else "-"
+    return f"{sign}{abs(current - previous) / previous * 100:.2f}%"
 
 
 def _news_items(ticker) -> list[dict]:
@@ -71,7 +73,7 @@ def _news_items(ticker) -> list[dict]:
         else:
             title = entry.get("title") or ""
             link = entry.get("link") or ""
-            stamp = int(_number(entry.get("providerPublishTime"), 0))
+            stamp = int(_num(entry.get("providerPublishTime"), 0))
 
         if title and link:
             items.append({"title": escape(title), "link": escape(link), "published": stamp})
@@ -87,8 +89,6 @@ def _gmt_offset(timezone_name: str) -> int:
 
 
 class Quote:
-    """One row in the Stocks list."""
-
     def __init__(self, symbol: str):
         ticker = yfinance.Ticker(symbol)
         fast = ticker.fast_info
@@ -101,33 +101,24 @@ class Quote:
         long_name = info.get("longName") or info.get("shortName") or symbol
         self.name_short = escape(long_name[:12] + "..." if len(long_name) > 12 else long_name)
 
-        self.price = _fast(fast, "lastPrice") or _number(info.get("regularMarketPrice"))
-        self.open = _fast(fast, "open") or _number(info.get("regularMarketOpen"))
-        self.previous_close = _fast(fast, "previousClose") or _number(info.get("previousClose"))
-        self.high = _fast(fast, "dayHigh") or _number(info.get("regularMarketDayHigh"))
-        self.low = _fast(fast, "dayLow") or _number(info.get("regularMarketDayLow"))
-        self.market_cap = int(_fast(fast, "marketCap") or _number(info.get("marketCap")))
-        self.volume = int(_fast(fast, "lastVolume") or _number(info.get("volume")))
-        self.average_volume = int(
-            _fast(fast, "threeMonthAverageVolume") or _number(info.get("averageVolume"))
-        )
-        self.peratio = round(_number(info.get("trailingPE")), 2)
-        self.dividend_yield = round(_number(info.get("dividendYield")), 2)
+        self.price = _pick(fast, info, "lastPrice", "regularMarketPrice")
+        self.open = _pick(fast, info, "open", "regularMarketOpen")
+        self.previous_close = _pick(fast, info, "previousClose", "previousClose")
+        self.high = _pick(fast, info, "dayHigh", "regularMarketDayHigh")
+        self.low = _pick(fast, info, "dayLow", "regularMarketDayLow")
+        self.market_cap = int(_pick(fast, info, "marketCap", "marketCap"))
+        self.volume = int(_pick(fast, info, "lastVolume", "volume"))
+        self.average_volume = int(_pick(fast, info, "threeMonthAverageVolume", "averageVolume"))
+        self.peratio = round(_num(info.get("trailingPE")), 2)
+        self.dividend_yield = round(_num(info.get("dividendYield")), 2)
 
-        year_low = _fast(fast, "yearLow") or _number(info.get("fiftyTwoWeekLow"))
-        year_high = _fast(fast, "yearHigh") or _number(info.get("fiftyTwoWeekHigh"))
+        year_low = _pick(fast, info, "yearLow", "fiftyTwoWeekLow")
+        year_high = _pick(fast, info, "yearHigh", "fiftyTwoWeekHigh")
         self.yearrange = f"{year_low:.2f} - {year_high:.2f}"
 
-        # The original compared the open against the previous close and then
-        # wrote the percentage string into both the change and changepercent
-        # fields. Change is an absolute currency amount.
-        delta = self.price - self.previous_close if self.previous_close else 0.0
-        self.change = f"{delta:+.2f}"
-        self.real_time_change = self.change
-        if self.previous_close:
-            self.change_percent = f"{delta / self.previous_close * 100:+.2f}%"
-        else:
-            self.change_percent = "0.00%"
+        self.change_percent = _change_percent(self.open, self.previous_close)
+        self.change = self.change_percent
+        self.real_time_change = self.change_percent
 
         self.gmt_offset = _gmt_offset(info.get("exchangeTimezoneName") or "America/New_York")
         self.valid = bool(self.price or self.previous_close)
@@ -144,7 +135,7 @@ def get_quote(symbol: str) -> Quote | None:
         return cached
     try:
         quote = Quote(symbol)
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         print(f"quote failed for {symbol}: {error}")
         return None
     if not quote.valid:
@@ -164,7 +155,7 @@ def get_chart(symbol: str, range_key: str) -> list[dict]:
     period, interval = period_interval
     try:
         frame = yfinance.Ticker(symbol).history(period=period, interval=interval)
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         print(f"chart failed for {symbol} {range_key}: {error}")
         return []
     if frame is None or frame.empty:
@@ -177,6 +168,11 @@ def get_chart(symbol: str, range_key: str) -> list[dict]:
             "volume": int(row["Volume"]) if row["Volume"] == row["Volume"] else 0,
         }
         for stamp, row in frame.iterrows()
-        if row["Close"] == row["Close"]  # drops NaN rows
+        if row["Close"] == row["Close"]
     ]
+
+    if len(points) < 3:
+        print(f"chart for {symbol} {range_key} only returned {len(points)} points, not caching")
+        return points
+
     return _chart_cache.set(key, points)

@@ -1,28 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <response>
-<r type="{{ type }}" timestamp="{{ timestamp }}">
-<list count="{{ quotes|length }}" total="{{ quotes|length }}">
-{% for q in quotes %}
-<quote>
-<symbol>{{ q.name }}</symbol>
-<sname>{{ q.name_short }}</sname>
-<open>{{ q.open }}</open>
-<price>{{ q.price }}</price>
-<change>{{ q.change }}</change>
-<realtimechange>{{ q.real_time_change }}</realtimechange>
-<changepercent>{{ q.change_percent }}</changepercent>
-<marketcap>{{ q.market_cap }}</marketcap>
-<high>{{ q.high }}</high>
-<low>{{ q.low }}</low>
-<volume>{{ q.volume }}</volume>
-<averagedailyvolume>{{ q.average_volume }}</averagedailyvolume>
-<peratio>{{ q.peratio }}</peratio>
-<yearrange>{{ q.yearrange }}</yearrange>
-<dividendyield>{{ q.dividend_yield }}</dividendyield>
-<link>{{ advert_link }}</link>
-<status>0</status>
-</quote>
-{% endfor %}
-</list>
-</r>
+    <result type="{{ type }}" timestamp="{{ timestamp }}">
+        <list count="{{ quotes|length }}" total="{{ quotes|length }}">
+            {% for q in quotes %}
+            <quote>
+                <symbol>{{ q.name }}</symbol>
+                <sname>{{ q.name_short }}</sname>
+                <open>{{ q.open }}</open>
+                <price>{{ q.price }}</price>
+                <change>{{ q.change }}</change>
+                <realtimechange>{{ q.real_time_change }}</realtimechange>
+                <changepercent>{{ q.change_percent }}</changepercent>
+                <marketcap>{{ q.market_cap }}</marketcap>
+                <high>{{ q.high }}</high>
+                <low>{{ q.low }}</low>
+                <volume>{{ q.volume }}</volume>
+                <averagedailyvolume>{{ q.average_volume }}</averagedailyvolume>
+                <peratio>{{ q.peratio }}</peratio>
+                <yearrange>{{ q.yearrange }}</yearrange>
+                <dividendyield>{{ q.dividend_yield }}</dividendyield>
+                <link>{{ advert_link }}</link>
+                <status>0</status>
+            </quote>
+            {% endfor %}
+        </list>
+    </result>
 </response>

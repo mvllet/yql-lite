@@ -1,12 +1,3 @@
-"""Place lookup.
-
-The old server chained YzuGeo (a private API), Nominatim and GeoNames under a
-hardcoded username. This uses Open-Meteo's geocoding API for search, which is
-free, keyless and returns coordinates, country code and first level admin area
-in one call. Reverse geocoding for GPS queries goes to BigDataCloud's keyless
-client endpoint.
-"""
-
 import httpx
 from iso3166 import countries
 
@@ -20,7 +11,6 @@ UNKNOWN_COUNTRY = "UNK"
 
 
 def short_lang(lang: str | None) -> str:
-    """'en-US' -> 'en'. Open-Meteo wants a lowercase two letter code."""
     if not lang:
         return "en"
     return lang.replace("_", "-").split("-")[0].lower()[:2] or "en"
@@ -54,8 +44,6 @@ def _to_place(result: dict) -> Place:
 
 
 async def search(client: httpx.AsyncClient, term: str, lang: str, limit: int = 10) -> list[Place]:
-    """City name to a list of places. Results are persisted so the device can
-    send the woeid back later."""
     term = (term or "").strip()
     if len(term) < 2:
         return []
@@ -79,8 +67,6 @@ async def search(client: httpx.AsyncClient, term: str, lang: str, limit: int = 1
 
 
 async def reverse(client: httpx.AsyncClient, lat: float, lon: float, lang: str) -> Place:
-    """Coordinates to a place. Used for the device's GPS location and to
-    recover a name for a woeid missing from the table."""
     key = (round(float(lat), 2), round(float(lon), 2), short_lang(lang))
     cached = _reverse_cache.get(key)
     if cached is not None:
@@ -113,8 +99,6 @@ async def reverse(client: httpx.AsyncClient, lat: float, lon: float, lang: str) 
 
 
 async def resolve(client: httpx.AsyncClient, woeid: str, lang: str) -> Place | None:
-    """Woeid back to a place. Hits the table first, then falls back to
-    decoding the coordinates out of the id and reverse geocoding the name."""
     place = load_place(woeid)
     if place:
         return place

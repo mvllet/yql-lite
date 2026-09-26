@@ -1,10 +1,3 @@
-"""HTTP surface.
-
-Weather uses the YQL protocol (iOS 5 to 7): a GET with a pseudo-SQL q=
-parameter. Stocks uses the DGW protocol: a POST carrying an XML request body.
-Both answer with XML shaped like Yahoo's old responses.
-"""
-
 import re
 import time
 from contextlib import asynccontextmanager
@@ -59,7 +52,6 @@ router = APIRouter(default_response_class=XMLResponse)
 
 
 async def build_location(client: httpx.AsyncClient, place, lang: str) -> dict | None:
-    """One place plus its current weather, flattened for the template."""
     try:
         conditions = await weather.fetch(client, place.latitude, place.longitude)
     except (httpx.HTTPError, KeyError, ValueError) as error:
@@ -77,6 +69,17 @@ async def build_location(client: httpx.AsyncClient, place, lang: str) -> dict | 
         "longitude": round(place.longitude, 4),
         "location_id": LOCATION_ID,
     }
+
+
+async def resolve_places(client: httpx.AsyncClient, parsed: query.Query) -> list:
+    if parsed.kind == "latlon":
+        return [await geo.reverse(client, parsed.lat, parsed.lon, parsed.lang)]
+    places = []
+    for woeid in parsed.woeids:
+        place = await geo.resolve(client, woeid, parsed.lang)
+        if place:
+            places.append(place)
+    return places
 
 
 @router.get("/yql/weather")
@@ -110,15 +113,7 @@ async def weather_yql(request: Request):
             ],
         )
 
-    if parsed.kind == "latlon":
-        places = [await geo.reverse(client, parsed.lat, parsed.lon, parsed.lang)]
-    else:
-        places = []
-        for woeid in parsed.woeids:
-            place = await geo.resolve(client, woeid, parsed.lang)
-            if place:
-                places.append(place)
-
+    places = await resolve_places(client, parsed)
     results = []
     for place in places:
         location = await build_location(client, place, parsed.lang)
@@ -135,18 +130,75 @@ async def dgw_probe():
     return Response("ok")
 
 
+async def dgw_weather(client: httpx.AsyncClient, root: ElementTree.Element, search: bool):
+    query_node = root[0]
+    lang = query_node[1].text if len(query_node) > 1 else "en-US"
+
+    if search:
+        term = query_node[0][0].text if len(query_node) and len(query_node[0]) else ""
+        try:
+            places = await geo.search(client, term, lang)
+        except httpx.HTTPError as error:
+            print(f"search failed for {term}: {error}")
+            places = []
+        return render(
+            "weather_dgw_search.jinja2",
+            results=[
+                {"city": escape(p.name), "country_name": escape(geo.country_name(p.country_code)), "woeid": p.woeid}
+                for p in places
+            ],
+        )
+
+    woeids = [node.text.split("|")[-1] for node in query_node.iter("id") if node.text]
+    places = []
+    for woeid in woeids:
+        place = await geo.resolve(client, woeid, lang)
+        if place:
+            places.append(place)
+
+    results = []
+    for place in places:
+        location = await build_location(client, place, lang)
+        if location:
+            results.append(location)
+
+    if not results:
+        return Response("No results", status_code=404)
+    return render("weather_dgw.jinja2", results=results)
+
+
 @router.post("/dgw")
+@router.post("/yql/weather/dgw")
 async def dgw(request: Request):
-    """Stocks.app request handler."""
     body = (await request.body()).decode("utf-8", "replace")
     try:
         root = ElementTree.fromstring(body)
     except ElementTree.ParseError:
         return Response("Malformed XML", status_code=400)
 
-    if root.attrib.get("api") != "finance" or len(root) == 0:
-        return Response("Unsupported api", status_code=400)
+    if len(root) == 0:
+        return Response("Empty request", status_code=400)
 
+    client: httpx.AsyncClient = request.app.state.http
+    api = root.attrib.get("api")
+
+    if api == "weather":
+        req_type = root[0].attrib.get("type", "")
+        if settings.log_queries:
+            print(f"dgw weather {req_type}")
+        if req_type == "getlocationid":
+            return await dgw_weather(client, root, search=True)
+        if req_type == "getforecastbylocationid":
+            return await dgw_weather(client, root, search=False)
+        return Response("Unsupported request type", status_code=400)
+
+    if api == "finance":
+        return await dgw_finance(root)
+
+    return Response("Unsupported api", status_code=400)
+
+
+async def dgw_finance(root: ElementTree.Element):
     req_type = root[0].attrib.get("type", "")
     symbols = [node.text.strip() for node in root.iter() if node.tag in ("symbol", "phrase") and node.text]
     range_node = next((node.text for node in root.iter() if node.tag == "range"), None)
@@ -192,8 +244,9 @@ def _load_quotes(symbols: list[str]):
 async def index():
     return {
         "name": "YQL-X-Server",
-        "weather": "GET /yql/weather?q=<yql>",
-        "stocks": "POST /dgw",
+        "weather_yql": "GET /yql/weather?q=<yql>",
+        "weather_dgw": "POST /dgw (api=\"weather\")",
+        "stocks": "POST /dgw (api=\"finance\")",
     }
 
 

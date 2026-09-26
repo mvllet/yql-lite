@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <response>
-<r type="{{ type }}" timestamp="{{ timestamp }}">
-<list count="{{ points|length }}" total="{{ points|length }}">
-<meta>
-<symbol>{{ symbol }}</symbol>
-<marketopen>{{ market_open }}</marketopen>
-<marketclose>{{ market_close }}</marketclose>
-<gmtoffset>{{ gmt_offset }}</gmtoffset>
-</meta>
-{% for p in points %}
-<point timestamp="{{ p.timestamp }}" close="{{ p.close }}" volume="{{ p.volume }}" />
-{% endfor %}
-</list>
-</r>
+    <result type="{{ type }}" timestamp="{{ timestamp }}">
+        <list count="{{ points|length }}" total="{{ points|length }}">
+            <meta>
+            <symbol>{{ symbol }}</symbol>
+            <marketopen>{{ market_open }}</marketopen>
+            <marketclose>{{ market_close }}</marketclose>
+            <gmtoffset>{{ gmt_offset }}</gmtoffset>
+            </meta>
+            {% for p in points %}
+            <point timestamp="{{ p.timestamp }}" close="{{ p.close }}" volume="{{ p.volume }}" />
+            {% endfor %}
+        </list>
+    </result>
 </response>

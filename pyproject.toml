@@ -1,7 +1,7 @@
 [project]
 name = "yql-x-server"
-version = "2.0.0"
-description = "Weather and Stocks backend for legacy iOS (5-7) devices"
+version = "2.1.0"
+description = "Weather and Stocks backend for legacy iOS (2-7) devices"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "GPL-3.0-or-later" }
@@ -11,7 +11,8 @@ dependencies = [
     "httpx>=0.28",
     "jinja2>=3.1",
     "iso3166>=2.1",
-    "yfinance>=0.2.66",
+    "yfinance>=1.7.0",
+    "curl_cffi>=0.9",
 ]
 
 [project.scripts]

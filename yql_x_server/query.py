@@ -1,15 +1,3 @@
-"""Parses the pseudo-SQL the Weather app puts in the q= parameter.
-
-The device sends real YQL, but the server never needs to execute it. Three
-shapes matter:
-
-  select * from partner.weather.locations where query="hamburg" and lang='en-US'
-  select * from partner.weather.forecast where lat=53.55 and lon=9.99 ...
-  select * from partner.weather.forecast where woeid=2618724 and lang='en-US'
-
-The third also arrives wrapped in yql.query.multi with several woeids.
-"""
-
 import html
 import re
 from dataclasses import dataclass, field

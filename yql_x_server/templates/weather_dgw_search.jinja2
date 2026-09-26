@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<response>
+    <result>
+        <list>
+            {% for r in results %}
+            <item>
+                <id>{{ r.woeid }}</id>
+                <city>{{ r.city }}</city>
+                <countryname>{{ r.country_name }}</countryname>
+            </item>
+            {% endfor %}
+        </list>
+    </result>
+</response>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<response>
+    <result>
+        <list>
+            {% for r in results %}
+            <item>
+                <id>{{ r.woeid }}</id>
+                <location id="{{ r.woeid }}" city="{{ r.city }}" />
+                <units temperature="C" />
+                <astronomy sunrise="{{ r.sunrise_24h }}" sunset="{{ r.sunset_24h }}" moonphase="{{ r.moonphase }}"
+                    moonfacevisible="{{ r.moonfacevisible }}%" />
+                <condition text="{{ r.condition_text }}" code="{{ r.condition_code }}" temp="{{ r.temp_rounded }}"
+                    time="{{ r.current_time_24h }}" />
+                <link>{{ advert_link }}</link>
+                {% for day in r.days %}
+                <forecast dayofweek="{{ day.ordinal }}" low="{{ day.low_rounded }}" high="{{ day.high_rounded }}"
+                    text="{{ day.condition_text }}" code="{{ day.condition_code }}" />
+                {% endfor %}
+            </item>
+            {% endfor %}
+        </list>
+    </result>
+</response>

@@ -1,17 +1,3 @@
-"""Weather from Open-Meteo, shaped into the fields the templates want.
-
-The old YzuWeather provider proxied Open-Meteo through a private host. This
-calls Open-Meteo directly. Three fixes over the original:
-
-- Forecast days are indexed by position, not by day-of-week number. The old
-  code used the weekday (1 to 7) as an array index, so the six day forecast
-  only lined up when tomorrow happened to be a Wednesday.
-- Visibility is read from the hourly block. Open-Meteo has no visibility in
-  the current block, so the old code always fell back to a constant.
-- Moon phase is computed from the synodic month instead of pulling in ephem,
-  and illumination is a real cosine rather than the lunation percentage.
-"""
-
 import math
 from datetime import datetime, timedelta, timezone
 
@@ -32,8 +18,6 @@ DAILY_FIELDS = (
     "precipitation_probability_max"
 )
 
-# WMO weather code to the Yahoo condition code the Weather app draws icons
-# from. Pairs are (day icon, night icon).
 WMO_TO_YAHOO: dict[int, tuple[int, int]] = {
     0: (32, 31),    # clear sky
     1: (34, 33),    # mainly clear
@@ -79,11 +63,6 @@ KNOWN_NEW_MOON = datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc)
 
 
 def moon(now: datetime) -> tuple[int, int]:
-    """Returns (percent of the disc lit, phase marker).
-
-    The phase marker matches what the old server sent: 0 around a new moon,
-    1 while waxing, 5 while waning.
-    """
     days = (now - KNOWN_NEW_MOON).total_seconds() / 86400.0
     lunation = (days % SYNODIC_MONTH) / SYNODIC_MONTH
     illumination = int(round((1 - math.cos(2 * math.pi * lunation)) / 2 * 100))
@@ -136,7 +115,6 @@ def normalise(data: dict) -> dict:
     sunset = _local(daily["sunset"][0], tz)
     is_day = bool(current.get("is_day", 1))
 
-    # First hourly slot strictly after the current reading.
     hour_index = 0
     for index, stamp in enumerate(hourly["time"]):
         if int(stamp) > int(current["time"]):
@@ -157,7 +135,6 @@ def normalise(data: dict) -> dict:
             }
         )
 
-    # daily[0] is today. The app shows the next six days.
     days = []
     for index in range(1, min(7, len(daily["time"]))):
         slot = _local(daily["time"][index], tz)

@@ -1,50 +1,60 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<query xmlns:yahoo="http://www.yahooapis.com/v1/base.rng" yahoo:count="{{ count }}" yahoo:created="{{ created }}" yahoo:lang="en-US">
-<meta>
-<meta>
-<weather>
-<yahoo_mobile_url>{{ advert_link }}</yahoo_mobile_url>
-<twc_mobile_url>{{ advert_link }}</twc_mobile_url>
-<units distanceUnits="km" pressureUnits="mb" speedUnits="km/h" tempUnits="C" />
-</weather>
-</meta>
-<meta>
-<weather>
-<yahoo_mobile_url>{{ advert_link }}</yahoo_mobile_url>
-<twc_mobile_url>{{ advert_link }}</twc_mobile_url>
-<units tempUnits="C" />
-</weather>
-</meta>
-</meta>
-<results>
-{% for r in results %}
-<results>
-<location city="{{ r.city }}" country="{{ r.country_alpha3 }}" latitude="{{ r.latitude }}" locationID="{{ r.location_id }}" longitude="{{ r.longitude }}" state="{{ r.state }}" woeid="{{ r.woeid }}">
-<currently barometer="{{ r.barometer }}" barometricTrend="" dewpoint="{{ r.dew_point }}" feelsLike="{{ r.feels_like }}" heatIndex="{{ r.feels_like }}" moonfacevisible="{{ r.moonfacevisible }}%" moonphase="{{ r.moonphase }}" percentHumidity="{{ r.p_humidity }}" sunrise="{{ r.sunrise_12h }}" sunrise24="{{ r.sunrise_24h }}" sunset="{{ r.sunset_12h }}" sunset24="{{ r.sunset_24h }}" temp="{{ r.temp }}" tempBgcolor="" time="{{ r.current_time_12h }}" time24="{{ r.current_time_24h }}" timezone="{{ r.timezone }}" visibility="{{ r.visibility }}" windChill="{{ r.wind_chill }}" windDirection="{{ r.wind_deg }}" windDirectionDegree="{{ r.wind_deg }}" windSpeed="{{ r.wind_speed }}">
-<condition code="{{ r.condition_code }}" />
-</currently>
-<forecast>
-{% for day in r.days %}
-<day dayOfWeek="{{ day.ordinal }}" poP="{{ day.poP }}">
-<temp high="{{ day.high }}" low="{{ day.low }}" />
-<condition code="{{ day.condition_code }}" />
-</day>
-{% endfor %}
-<extended_forecast_url>{{ advert_link }}</extended_forecast_url>
-</forecast>
-</location>
-</results>
-<results>
-<location woeid="{{ r.woeid }}">
-<hourlyforecast>
-{% for hour in r.hours %}
-<hour time24="{{ hour.time_24h }}">
-<condition code="{{ hour.condition_code }}" poP="{{ hour.poP }}" temp="{{ hour.temp }}" />
-</hour>
-{% endfor %}
-</hourlyforecast>
-</location>
-</results>
-{% endfor %}
-</results>
+<query xmlns:yahoo="http://www.yahooapis.com/v1/base.rng" yahoo:count="{{ count }}" yahoo:created="{{ created }}"
+    yahoo:lang="en-US">
+    <meta>
+    <meta>
+    <weather>
+        <yahoo_mobile_url>{{ advert_link }}</yahoo_mobile_url>
+        <twc_mobile_url>{{ advert_link }}</twc_mobile_url>
+        <units distanceUnits="km" pressureUnits="mb" speedUnits="km/h" tempUnits="C" />
+    </weather>
+    </meta>
+    <meta>
+    <weather>
+        <yahoo_mobile_url>{{ advert_link }}</yahoo_mobile_url>
+        <twc_mobile_url>{{ advert_link }}</twc_mobile_url>
+        <units tempUnits="C" />
+    </weather>
+    </meta>
+    </meta>
+    <results>
+        {% for r in results %}
+        <results>
+            <location city="{{ r.city }}" country="{{ r.country_alpha3 }}" latitude="{{ r.latitude }}"
+                locationID="{{ r.location_id }}" longitude="{{ r.longitude }}" state="{{ r.state }}"
+                woeid="{{ r.woeid }}">
+                <currently barometer="{{ r.barometer }}" barometricTrend="" dewpoint="{{ r.dew_point }}"
+                    feelsLike="{{ r.feels_like }}" heatIndex="{{ r.feels_like }}"
+                    moonfacevisible="{{ r.moonfacevisible }}%" moonphase="{{ r.moonphase }}"
+                    percentHumidity="{{ r.p_humidity }}" sunrise="{{ r.sunrise_12h }}" sunrise24="{{ r.sunrise_24h }}"
+                    sunset="{{ r.sunset_12h }}" sunset24="{{ r.sunset_24h }}" temp="{{ r.temp }}" tempBgcolor=""
+                    time="{{ r.current_time_12h }}" time24="{{ r.current_time_24h }}" timezone="{{ r.timezone }}"
+                    visibility="{{ r.visibility }}" windChill="{{ r.wind_chill }}" windDirection="{{ r.wind_deg }}"
+                    windDirectionDegree="{{ r.wind_deg }}" windSpeed="{{ r.wind_speed }}">
+                    <condition code="{{ r.condition_code }}" />
+                </currently>
+                <forecast>
+                    {% for day in r.days %}
+                    <day dayOfWeek="{{ day.ordinal }}" poP="{{ day.poP }}">
+                        <temp high="{{ day.high }}" low="{{ day.low }}" />
+                        <condition code="{{ day.condition_code }}" />
+                    </day>
+                    {% endfor %}
+                    <extended_forecast_url>{{ advert_link }}</extended_forecast_url>
+                </forecast>
+            </location>
+        </results>
+        <results>
+            <location woeid="{{ r.woeid }}">
+                <hourlyforecast>
+                    {% for hour in r.hours %}
+                    <hour time24="{{ hour.time_24h }}">
+                        <condition code="{{ hour.condition_code }}" poP="{{ hour.poP }}" temp="{{ hour.temp }}" />
+                    </hour>
+                    {% endfor %}
+                </hourlyforecast>
+            </location>
+        </results>
+        {% endfor %}
+    </results>
 </query>

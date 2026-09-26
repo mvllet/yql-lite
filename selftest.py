@@ -1,14 +1,3 @@
-"""Self test.
-
-Offline part: parses sample queries, normalises a recorded Open-Meteo payload
-and renders every template, checking the XML is well formed.
-
-Live part: hits Open-Meteo and Yahoo for real. Skipped with --offline.
-
-    python selftest.py
-    python selftest.py --offline
-"""
-
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -16,7 +5,7 @@ from xml.etree import ElementTree
 
 from fastapi.testclient import TestClient
 
-from yql_x_server import geo, query, server, weather
+from yql_x_server import query, server, stocks, weather
 from yql_x_server.store import decode_woeid, encode_woeid
 
 PASS, FAIL = "  ok  ", " FAIL "
@@ -31,7 +20,6 @@ def check(label: str, condition: bool, detail: str = "") -> None:
 
 
 def sample_payload() -> dict:
-    """An Open-Meteo response shaped exactly like the live one."""
     offset = 7200
     tz = timezone(timedelta(seconds=offset))
     midnight = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -178,7 +166,7 @@ def test_templates() -> None:
         volume = 41000000
         average_volume = 52000000
         peratio = 29.4
-        dividend_yield = 0.5
+        dividend_yield = 0.005
         yearrange = "164.08 - 199.62"
         gmt_offset = -4
         news = [{"title": "Apple ships something", "link": "https://example.com/a", "published": 1700000000}]
@@ -201,6 +189,20 @@ def test_templates() -> None:
     news = server.render("stocks_getnews.jinja2", posts=FakeQuote.news)
     check("stocks_getnews.jinja2 is well formed XML", ElementTree.fromstring(news.body).tag == "feed")
 
+    dgw = server.render("weather_dgw.jinja2", results=[location])
+    root = ElementTree.fromstring(dgw.body)
+    check("weather_dgw.jinja2 is well formed XML", root.tag == "response")
+    check("dgw forecast has six days", len(root.findall(".//forecast")) == 6)
+
+    dgw_search = server.render(
+        "weather_dgw_search.jinja2",
+        results=[{"woeid": 1, "city": "Hamburg", "country_name": "Germany"}],
+    )
+    check(
+        "weather_dgw_search.jinja2 is well formed XML",
+        ElementTree.fromstring(dgw_search.body).tag == "response",
+    )
+
 
 def test_routes() -> None:
     print("\nRouting")
@@ -213,8 +215,54 @@ def test_routes() -> None:
             client.post("/dgw", content="<broken").status_code == 400,
         )
         check(
-            "weather over DGW is refused",
-            client.post("/dgw", content='<request api="weather"><query type="getlocationid"/></request>').status_code == 400,
+            "empty DGW request is a 400",
+            client.post("/dgw", content='<request api="weather"></request>').status_code == 400,
+        )
+        check(
+            "unknown api is a 400",
+            client.post("/dgw", content='<request api="carpool"><query type="x"/></request>').status_code == 400,
+        )
+
+        dgw_search_body = (
+            '<request api="weather"><query type="getlocationid">'
+            "<list><term>Hamburg</term></list><lang>en</lang>"
+            "</query></request>"
+        )
+        response = client.post("/dgw", content=dgw_search_body)
+        check(
+            f"DGW weather search reaches the handler (got {response.status_code})",
+            response.status_code in (200, 404),
+        )
+
+        dgw_forecast_body = (
+            '<request api="weather"><query type="getforecastbylocationid">'
+            "<list><item><id>516813354</id></item></list><lang>en</lang>"
+            "</query></request>"
+        )
+        response = client.post("/dgw", content=dgw_forecast_body)
+        check(
+            f"DGW weather forecast reaches the handler (got {response.status_code})",
+            response.status_code in (200, 404),
+        )
+
+        check(
+            "DGW weather forecast with no ids is a 404",
+            client.post(
+                "/dgw",
+                content='<request api="weather"><query type="getforecastbylocationid"><list></list><lang>en</lang></query></request>',
+            ).status_code
+            == 404,
+        )
+
+        encoded_body = (
+            '<?xml version="1.0"?><request api="finance"><query type="getquotes">'
+            "<list><symbol>%5EGDAXI</symbol></list>"
+            "</query></request>"
+        )
+        response = client.post("/dgw", content=encoded_body)
+        check(
+            f"percent-encoded index ticker reaches the handler (got {response.status_code})",
+            response.status_code in (200, 404),
         )
 
 
@@ -259,6 +307,51 @@ def test_live() -> None:
             quote = root.find(".//quote")
             if quote is not None:
                 print(f"         AAPL {quote.findtext('price')} {quote.findtext('changepercent')}")
+            else:
+                print("         no <quote> in the response, check the server log above for why")
+
+        print("\nLive chart density")
+        for range_key in stocks.RANGES:
+            chart_body = (
+                '<?xml version="1.0"?><request api="finance"><query type="getchart">'
+                f"<list><symbol>AAPL</symbol><range>{range_key}</range></list>"
+                "</query></request>"
+            )
+            response = client.post("/dgw", content=chart_body)
+            if response.status_code != 200:
+                check(f"{range_key:>3} chart returns 200 (got {response.status_code})", False)
+                continue
+            root = ElementTree.fromstring(response.content)
+            points = root.findall(".//point")
+            check(f"{range_key:>3} chart has more than 5 points ({len(points)} points)", len(points) > 5)
+
+        print("\nLive DGW weather (iOS 2-4)")
+        dgw_search_body = (
+            '<request api="weather"><query type="getlocationid">'
+            "<list><term>Hamburg</term></list><lang>en</lang></query></request>"
+        )
+        response = client.post("/dgw", content=dgw_search_body)
+        check(f"dgw city search returns 200 (got {response.status_code})", response.status_code == 200)
+        dgw_woeid = None
+        if response.status_code == 200:
+            root = ElementTree.fromstring(response.content)
+            items = root.findall(".//item")
+            check(f"dgw city search found {len(items)} places", len(items) > 0)
+            if items:
+                dgw_woeid = items[0].findtext("id")
+                print(f"         first hit: {items[0].findtext('city')} id={dgw_woeid}")
+
+        if dgw_woeid:
+            dgw_forecast_body = (
+                '<request api="weather"><query type="getforecastbylocationid">'
+                f"<list><item><id>{dgw_woeid}</id></item></list><lang>en</lang>"
+                "</query></request>"
+            )
+            response = client.post("/dgw", content=dgw_forecast_body)
+            check(f"dgw forecast returns 200 (got {response.status_code})", response.status_code == 200)
+            if response.status_code == 200:
+                root = ElementTree.fromstring(response.content)
+                check("dgw forecast has six days", len(root.findall(".//forecast")) == 6)
 
 
 if __name__ == "__main__":

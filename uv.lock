@@ -1009,9 +1009,10 @@ wheels = [
 
 [[package]]
 name = "yql-x-server"
-version = "2.0.0"
+version = "2.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "curl-cffi" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "iso3166" },
@@ -1022,10 +1023,11 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "curl-cffi", specifier = ">=0.9" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "iso3166", specifier = ">=2.1" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "uvicorn", specifier = ">=0.34" },
-    { name = "yfinance", specifier = ">=0.2.66" },
+    { name = "yfinance", specifier = ">=1.7.0" },
 ]
