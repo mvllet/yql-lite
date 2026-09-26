@@ -5,7 +5,7 @@ from .config import settings
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="yql-x-server")
+    parser = argparse.ArgumentParser(prog="yql-lite")
     parser.add_argument("--host", default=None, help="bind address (default 0.0.0.0)")
     parser.add_argument("--port", type=int, default=None, help="bind port (default 8000)")
     parser.add_argument("--db-path", type=Path, default=None, help="place table location")

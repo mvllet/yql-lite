@@ -1008,7 +1008,7 @@ wheels = [
 ]
 
 [[package]]
-name = "yql-x-server"
+name = "yql-lite"
 version = "2.1.0"
 source = { editable = "." }
 dependencies = [

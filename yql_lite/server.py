@@ -40,14 +40,14 @@ def render(name: str, **context) -> XMLResponse:
 async def lifespan(app: FastAPI):
     app.state.http = httpx.AsyncClient(
         timeout=settings.http_timeout,
-        headers={"User-Agent": "YQL-X-Server/2.0"},
+        headers={"User-Agent": "yql-lite/2.0"},
         follow_redirects=True,
     )
     yield
     await app.state.http.aclose()
 
 
-app = FastAPI(title="YQL-X-Server", lifespan=lifespan)
+app = FastAPI(title="yql-lite", lifespan=lifespan)
 router = APIRouter(default_response_class=XMLResponse)
 
 
@@ -243,7 +243,7 @@ def _load_quotes(symbols: list[str]):
 @app.get("/")
 async def index():
     return {
-        "name": "YQL-X-Server",
+        "name": "yql-lite",
         "weather_yql": "GET /yql/weather?q=<yql>",
         "weather_dgw": "POST /dgw (api=\"weather\")",
         "stocks": "POST /dgw (api=\"finance\")",

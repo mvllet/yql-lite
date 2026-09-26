@@ -5,8 +5,8 @@ from xml.etree import ElementTree
 
 from fastapi.testclient import TestClient
 
-from yql_x_server import query, server, stocks, weather
-from yql_x_server.store import decode_woeid, encode_woeid
+from yql_lite import query, server, stocks, weather
+from yql_lite.store import decode_woeid, encode_woeid
 
 PASS, FAIL = "  ok  ", " FAIL "
 failures = 0
