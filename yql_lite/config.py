@@ -2,6 +2,10 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def _env(name: str, default: str) -> str:
     return os.environ.get(name, default)
@@ -10,7 +14,7 @@ def _env(name: str, default: str) -> str:
 @dataclass
 class Settings:
     host: str = field(default_factory=lambda: _env("YQL_LITE_HOST", "0.0.0.0"))
-    port: int = field(default_factory=lambda: int(_env("YQL_LITE_PORT", "8000")))
+    port: int = field(default_factory=lambda: int(os.environ.get("YQL_LITE_PORT", "8000")))
 
     weather_api: str = field(
         default_factory=lambda: _env("YQL_LITE_WEATHER_API", "https://api.open-meteo.com/v1/forecast")

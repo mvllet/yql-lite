@@ -1,6 +1,6 @@
 [project]
 name = "yql-lite"
-version = "2.1.0"
+version = "2.1.1"
 description = "Weather & Stocks backend for legacy iOS (2-7) devices."
 authors = [
     { name = "Mullet" }
@@ -15,6 +15,7 @@ dependencies = [
     "iso3166>=2.1",
     "yfinance>=1.7.0",
     "curl_cffi>=0.9",
+    "python-dotenv>=1.0",
 ]
 
 [project.scripts]
