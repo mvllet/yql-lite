@@ -240,6 +240,11 @@ def _load_quotes(symbols: list[str]):
     return [stocks.get_quote(symbol) for symbol in symbols]
 
 
+@app.get("/health")
+async def health():
+    return Response("OK", media_type="text/plain")
+
+
 @app.get("/")
 async def index():
     return {
