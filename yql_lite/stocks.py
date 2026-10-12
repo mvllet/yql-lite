@@ -5,7 +5,10 @@ from zoneinfo import ZoneInfo
 import yfinance
 
 from .config import settings
+from .log import get_logger
 from .store import TTLCache
+
+logger = get_logger()
 
 _quote_cache = TTLCache(ttl=settings.stocks_ttl)
 _chart_cache = TTLCache(ttl=3600)
@@ -136,7 +139,7 @@ def get_quote(symbol: str) -> Quote | None:
     try:
         quote = Quote(symbol)
     except Exception as error:
-        print(f"quote failed for {symbol}: {error}")
+        logger.warning(f"quote failed {symbol}: {str(error)[:120]}")
         return None
     if not quote.valid:
         return None
@@ -156,7 +159,7 @@ def get_chart(symbol: str, range_key: str) -> list[dict]:
     try:
         frame = yfinance.Ticker(symbol).history(period=period, interval=interval)
     except Exception as error:
-        print(f"chart failed for {symbol} {range_key}: {error}")
+        logger.warning(f"chart failed {symbol} {range_key}: {str(error)[:120]}")
         return []
     if frame is None or frame.empty:
         return []
@@ -172,7 +175,7 @@ def get_chart(symbol: str, range_key: str) -> list[dict]:
     ]
 
     if len(points) < 3:
-        print(f"chart for {symbol} {range_key} only returned {len(points)} points, not caching")
+        logger.warning(f"chart sparse {symbol} {range_key}: {len(points)}points")
         return points
 
     return _chart_cache.set(key, points)

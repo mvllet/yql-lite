@@ -39,6 +39,7 @@ class Settings:
     weather_ttl: int = field(default_factory=lambda: int(_env("YQL_LITE_WEATHER_TTL", "900")))
     stocks_ttl: int = field(default_factory=lambda: int(_env("YQL_LITE_STOCKS_TTL", "900")))
     log_queries: bool = field(default_factory=lambda: _env("YQL_LITE_LOG_QUERIES", "1") == "1")
+    log_file: Path = field(default_factory=lambda: Path(_env("YQL_LITE_LOG_FILE", "server.log")))
 
     def update(self, **kwargs) -> None:
         for key, value in kwargs.items():
