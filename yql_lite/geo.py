@@ -4,8 +4,8 @@ from iso3166 import countries
 from .config import settings
 from .store import Place, TTLCache, decode_woeid, encode_woeid, load_place, save_place
 
-_search_cache = TTLCache(ttl=86400)
-_reverse_cache = TTLCache(ttl=86400)
+_search_cache = TTLCache(ttl=86400, maxsize=500)
+_reverse_cache = TTLCache(ttl=86400, maxsize=2000)
 
 UNKNOWN_COUNTRY = "UNK"
 
@@ -35,9 +35,9 @@ def _to_place(result: dict) -> Place:
     longitude = float(result["longitude"])
     return Place(
         woeid=encode_woeid(latitude, longitude),
-        name=result.get("name") or "Unknown",
-        country_code=(result.get("country_code") or "").upper(),
-        state=result.get("admin1") or "",
+        name=str(result.get("name") or "Unknown")[:80],
+        country_code=str(result.get("country_code") or "").upper()[:2],
+        state=str(result.get("admin1") or "")[:80],
         latitude=latitude,
         longitude=longitude,
     )
@@ -88,9 +88,9 @@ async def reverse(client: httpx.AsyncClient, lat: float, lon: float, lang: str) 
 
     place = Place(
         woeid=encode_woeid(lat, lon),
-        name=name or "Current Location",
-        country_code=country_code,
-        state=state,
+        name=str(name or "Current Location")[:80],
+        country_code=str(country_code or "").upper()[:2],
+        state=str(state or "")[:80],
         latitude=float(lat),
         longitude=float(lon),
     )

@@ -6,7 +6,7 @@ import httpx
 from .config import settings
 from .store import TTLCache
 
-_weather_cache = TTLCache(ttl=settings.weather_ttl)
+_weather_cache = TTLCache(ttl=settings.weather_ttl, maxsize=1000)
 
 CURRENT_FIELDS = (
     "temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,"

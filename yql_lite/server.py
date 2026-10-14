@@ -17,6 +17,7 @@ from .log import get_logger, setup_logging
 
 setup_logging(settings.log_file)
 logging.getLogger("uvicorn.access").disabled = True
+logging.getLogger("uvicorn.error").setLevel(logging.CRITICAL)
 logger = get_logger()
 
 
@@ -69,9 +70,13 @@ async def lifespan(app: FastAPI):
         timeout=settings.http_timeout,
         headers={"User-Agent": "yql-lite/2.0"},
         follow_redirects=True,
+        limits=httpx.Limits(max_connections=50, max_keepalive_connections=20),
     )
-    yield
-    await app.state.http.aclose()
+    print(f"Server running on port {settings.port}", flush=True)
+    try:
+        yield
+    finally:
+        await app.state.http.aclose()
 
 
 app = FastAPI(title="yql-lite", lifespan=lifespan)
@@ -98,15 +103,39 @@ async def build_location(client: httpx.AsyncClient, place, lang: str) -> dict | 
     }
 
 
+async def _resolve_one(client: httpx.AsyncClient, woeid: str, lang: str, out: list, index: int) -> None:
+    try:
+        out[index] = await geo.resolve(client, woeid, lang)
+    except httpx.HTTPError as error:
+        logger.warning(f"resolve failed woeid={woeid}: {_short(error)}")
+        out[index] = None
+
+
 async def resolve_places(client: httpx.AsyncClient, parsed: query.Query) -> list:
     if parsed.kind == "latlon":
         return [await geo.reverse(client, parsed.lat, parsed.lon, parsed.lang)]
-    places = []
-    for woeid in parsed.woeids:
-        place = await geo.resolve(client, woeid, parsed.lang)
-        if place:
-            places.append(place)
-    return places
+    woeids = list(parsed.woeids[: settings.max_woeids])
+    if not woeids:
+        return []
+    out: list = [None] * len(woeids)
+    async with anyio.create_task_group() as group:
+        for index, woeid in enumerate(woeids):
+            group.start_soon(_resolve_one, client, woeid, parsed.lang, out, index)
+    return [place for place in out if place]
+
+
+async def _build_one(client: httpx.AsyncClient, place, lang: str, out: list, index: int) -> None:
+    out[index] = await build_location(client, place, lang)
+
+
+async def build_locations(client: httpx.AsyncClient, places: list, lang: str) -> list:
+    if not places:
+        return []
+    out: list = [None] * len(places)
+    async with anyio.create_task_group() as group:
+        for index, place in enumerate(places):
+            group.start_soon(_build_one, client, place, lang, out, index)
+    return [location for location in out if location]
 
 
 @router.get("/yql/weather")
@@ -145,11 +174,7 @@ async def weather_yql(request: Request):
         )
 
     places = await resolve_places(client, parsed)
-    results = []
-    for place in places:
-        location = await build_location(client, place, parsed.lang)
-        if location:
-            results.append(location)
+    results = await build_locations(client, places, parsed.lang)
 
     if not results:
         if settings.log_queries:
@@ -188,17 +213,14 @@ async def dgw_weather(client: httpx.AsyncClient, root: ElementTree.Element, sear
         )
 
     woeids = [node.text.split("|")[-1] for node in query_node.iter("id") if node.text]
-    places = []
-    for woeid in woeids:
-        place = await geo.resolve(client, woeid, lang)
-        if place:
-            places.append(place)
+    woeids = woeids[: settings.max_woeids]
+    out: list = [None] * len(woeids)
+    async with anyio.create_task_group() as group:
+        for index, woeid in enumerate(woeids):
+            group.start_soon(_resolve_one, client, woeid, lang, out, index)
+    places = [place for place in out if place]
 
-    results = []
-    for place in places:
-        location = await build_location(client, place, lang)
-        if location:
-            results.append(location)
+    results = await build_locations(client, places, lang)
 
     if settings.log_queries:
         status = 404 if not results else 200
@@ -246,6 +268,27 @@ async def dgw(request: Request):
     return Response("Unsupported api", status_code=400)
 
 
+def _load_one_quote(symbol: str):
+    return stocks.get_quote(symbol)
+
+
+async def _fetch_one_quote(symbol: str, out: list, index: int, limiter: anyio.Semaphore) -> None:
+    async with limiter:
+        out[index] = await anyio.to_thread.run_sync(_load_one_quote, symbol)
+
+
+async def _load_quotes_parallel(symbols: list[str]) -> list:
+    if not symbols:
+        return []
+    workers = max(1, min(settings.quote_workers, len(symbols)))
+    limiter = anyio.Semaphore(workers)
+    out: list = [None] * len(symbols)
+    async with anyio.create_task_group() as group:
+        for index, symbol in enumerate(symbols):
+            group.start_soon(_fetch_one_quote, symbol, out, index, limiter)
+    return [quote for quote in out if quote]
+
+
 async def dgw_finance(root: ElementTree.Element, *, request: Request, start: float):
     req_type = root[0].attrib.get("type", "")
     symbols = [node.text.strip() for node in root.iter() if node.tag in ("symbol", "phrase") and node.text]
@@ -260,7 +303,13 @@ async def dgw_finance(root: ElementTree.Element, *, request: Request, start: flo
         _log(400)
         return Response("No symbols", status_code=400)
 
-    quotes = [quote for quote in await anyio.to_thread.run_sync(_load_quotes, symbols) if quote]
+    symbols = symbols[: settings.max_symbols]
+    if req_type == "getnews":
+        quotes = await _load_quotes_parallel(symbols[:1])
+    elif req_type == "getchart":
+        quotes = await _load_quotes_parallel(symbols[:1])
+    else:
+        quotes = await _load_quotes_parallel(symbols)
     if not quotes:
         _log(404)
         return Response("Unknown ticker", status_code=404)
@@ -292,10 +341,6 @@ async def dgw_finance(root: ElementTree.Element, *, request: Request, start: flo
 
     _log(400, "unsupported")
     return Response("Unsupported request type", status_code=400)
-
-
-def _load_quotes(symbols: list[str]):
-    return [stocks.get_quote(symbol) for symbol in symbols]
 
 
 @app.get("/health")

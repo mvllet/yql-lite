@@ -10,8 +10,10 @@ from .store import TTLCache
 
 logger = get_logger()
 
-_quote_cache = TTLCache(ttl=settings.stocks_ttl)
-_chart_cache = TTLCache(ttl=3600)
+_quote_cache = TTLCache(ttl=settings.stocks_ttl, maxsize=500)
+_chart_cache = TTLCache(ttl=3600, maxsize=200)
+
+MAX_NEWS = 20
 
 RANGES = {
     "1d": ("1d", "1m"),
@@ -60,6 +62,8 @@ def _news_items(ticker) -> list[dict]:
 
     items = []
     for entry in raw:
+        if len(items) >= MAX_NEWS:
+            break
         content = entry.get("content") if isinstance(entry, dict) else None
         if isinstance(content, dict):
             title = content.get("title") or ""
@@ -79,7 +83,9 @@ def _news_items(ticker) -> list[dict]:
             stamp = int(_num(entry.get("providerPublishTime"), 0))
 
         if title and link:
-            items.append({"title": escape(title), "link": escape(link), "published": stamp})
+            items.append(
+                {"title": escape(str(title)[:200]), "link": escape(str(link)[:500]), "published": stamp}
+            )
     return items
 
 
@@ -130,10 +136,10 @@ class Quote:
 
 
 def get_quote(symbol: str) -> Quote | None:
-    symbol = (symbol or "").strip()
+    symbol = (symbol or "").strip().upper()[:32]
     if not symbol:
         return None
-    cached = _quote_cache.get(symbol.upper())
+    cached = _quote_cache.get(symbol)
     if cached is not None:
         return cached
     try:
@@ -143,14 +149,17 @@ def get_quote(symbol: str) -> Quote | None:
         return None
     if not quote.valid:
         return None
-    return _quote_cache.set(symbol.upper(), quote)
+    return _quote_cache.set(symbol, quote)
 
 
 def get_chart(symbol: str, range_key: str) -> list[dict]:
+    symbol = (symbol or "").strip().upper()[:32]
+    if not symbol:
+        return []
     period_interval = RANGES.get((range_key or "").lower())
     if not period_interval:
         return []
-    key = (symbol.upper(), range_key.lower())
+    key = (symbol, range_key.lower())
     cached = _chart_cache.get(key)
     if cached is not None:
         return cached

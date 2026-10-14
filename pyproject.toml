@@ -1,6 +1,6 @@
 [project]
 name = "yql-lite"
-version = "2.2.0"
+version = "2.3.0"
 description = "Weather & Stocks backend for legacy iOS (2-7) devices."
 authors = [
     { name = "Mullet" }

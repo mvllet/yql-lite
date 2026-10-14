@@ -38,6 +38,9 @@ class Settings:
     http_timeout: float = field(default_factory=lambda: float(_env("YQL_LITE_HTTP_TIMEOUT", "10")))
     weather_ttl: int = field(default_factory=lambda: int(_env("YQL_LITE_WEATHER_TTL", "900")))
     stocks_ttl: int = field(default_factory=lambda: int(_env("YQL_LITE_STOCKS_TTL", "900")))
+    max_symbols: int = field(default_factory=lambda: int(_env("YQL_LITE_MAX_SYMBOLS", "32")))
+    max_woeids: int = field(default_factory=lambda: int(_env("YQL_LITE_MAX_WOEIDS", "10")))
+    quote_workers: int = field(default_factory=lambda: int(_env("YQL_LITE_QUOTE_WORKERS", "8")))
     log_queries: bool = field(default_factory=lambda: _env("YQL_LITE_LOG_QUERIES", "1") == "1")
     log_file: Path = field(default_factory=lambda: Path(_env("YQL_LITE_LOG_FILE", "server.log")))
 

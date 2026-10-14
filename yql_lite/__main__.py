@@ -1,4 +1,5 @@
 import argparse
+import logging
 from pathlib import Path
 
 from .config import settings
@@ -26,6 +27,8 @@ def main() -> None:
     from .log import setup_logging
 
     setup_logging(settings.log_file)
+    logging.getLogger("uvicorn.access").disabled = True
+    logging.getLogger("uvicorn.error").setLevel(logging.CRITICAL)
 
     import uvicorn
 
@@ -38,6 +41,7 @@ def main() -> None:
         proxy_headers=True,
         forwarded_allow_ips="*",
         access_log=False,
+        log_level="critical",
     )
 
 

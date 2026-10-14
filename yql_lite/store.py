@@ -38,26 +38,40 @@ class Place:
 
 
 class TTLCache:
-    def __init__(self, ttl: int):
+    def __init__(self, ttl: int, maxsize: int = 1000):
         self.ttl = ttl
+        self.maxsize = max(1, maxsize)
         self._data: dict[Any, tuple[float, Any]] = {}
         self._lock = threading.Lock()
 
     def get(self, key):
+        now = time.time()
         with self._lock:
             entry = self._data.get(key)
             if not entry:
                 return None
             stored_at, value = entry
-            if time.time() - stored_at > self.ttl:
+            if now - stored_at > self.ttl:
                 del self._data[key]
                 return None
             return value
 
     def set(self, key, value):
+        now = time.time()
         with self._lock:
-            self._data[key] = (time.time(), value)
+            if key not in self._data and len(self._data) >= self.maxsize:
+                expired = [k for k, (at, _) in self._data.items() if now - at > self.ttl]
+                for k in expired:
+                    del self._data[k]
+            while key not in self._data and len(self._data) >= self.maxsize:
+                oldest = min(self._data.items(), key=lambda item: item[1][0])[0]
+                del self._data[oldest]
+            self._data[key] = (now, value)
         return value
+
+    def __len__(self):
+        with self._lock:
+            return len(self._data)
 
 
 _db_lock = threading.Lock()
@@ -67,7 +81,10 @@ _conn: sqlite3.Connection | None = None
 def _db() -> sqlite3.Connection:
     global _conn
     if _conn is None:
-        _conn = sqlite3.connect(settings.db_path, check_same_thread=False)
+        _conn = sqlite3.connect(str(settings.db_path), check_same_thread=False, timeout=10.0)
+        _conn.execute("PRAGMA journal_mode=WAL")
+        _conn.execute("PRAGMA synchronous=NORMAL")
+        _conn.execute("PRAGMA busy_timeout=10000")
         _conn.execute(
             """CREATE TABLE IF NOT EXISTS places (
                    woeid INTEGER PRIMARY KEY,
