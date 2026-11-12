@@ -459,8 +459,12 @@ static int read_request(int fd, const char *peer, struct request *r) {
 
     if (q) {
         *q++ = 0;
+        if (strlen(q) >= sizeof r->query)
+            return -1;
         snprintf(r->query, sizeof r->query, "%s", q);
     }
+    if (strlen(r->target) >= sizeof r->path)
+        return -1;
     snprintf(r->path, sizeof r->path, "%s", r->target);
     snprintf(r->peer, sizeof r->peer, "%s", peer);
     snprintf(r->client, sizeof r->client, "%s", peer);
@@ -1045,7 +1049,7 @@ static void render_weather(struct buffer *b, struct wx *w, size_t n, const char 
     buf_add(b, "</twc_mobile_url><units tempUnits=\"C\"/></weather></meta></meta><results>");
     for (size_t i = 0; i < n; i++) {
         struct wx *x = &w[i];
-        char city[256], state[256], country[3];
+        char city[256], state[256], country[4];
 
         snprintf(city, sizeof city, "%s", x->city);
         snprintf(state, sizeof state, "%s", x->state);
