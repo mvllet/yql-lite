@@ -1,3 +1,8 @@
+# Project
+server
+places.db*
+.env
+
 # macOS
 .DS_Store
 
@@ -9,12 +14,3 @@
 *.bak
 *.old
 *~
-
-# Python
-__pycache__/
-env/
-venv/
-.venv/
-*.pyc
-places.db
-.env
