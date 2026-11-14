@@ -4,11 +4,7 @@
 #include <curl/curl.h>
 #include <errno.h>
 #include <fcntl.h>
-#if __has_include("/opt/homebrew/opt/json-c/include/json-c/json.h")
-#include "/opt/homebrew/opt/json-c/include/json-c/json.h"
-#else
 #include <json-c/json.h>
-#endif
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <math.h>
@@ -1842,6 +1838,8 @@ static void handle_client(int fd, const char *peer) {
         status = reply_text(fd, 429, "Too Many Requests", "Too Many Requests");
     } else if (!strcmp(r.path, "/dgw") && !strcmp(r.method, "GET")) {
         status = send_response(fd, 200, "OK", "text/plain; charset=utf-8", "ok", 2);
+    } else if (!strcmp(r.path, "/") && !strcmp(r.method, "HEAD")) {
+        status = send_response(fd, 200, "OK", "application/json", "", 0);
     } else if (!strcmp(r.path, "/") && !strcmp(r.method, "GET")) {
         const char *body = "{\"name\":\"yql-lite\",\"weather_yql\":\"GET "
                            "/yql/weather?q=<yql>\",\"weather_dgw\":\"POST /dgw "
