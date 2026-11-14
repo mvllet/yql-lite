@@ -1,12 +1,12 @@
-# Project
-server
-places.db*
-.env
-
 # macOS
 .DS_Store
 
-# Misc
+# Build output
+server
+places.db*
+
+# Editor and temporary files
+.vscode/
 *.log
 *.tmp
 *.swp
@@ -14,3 +14,7 @@ places.db*
 *.bak
 *.old
 *~
+
+# Private
+private/
+.env
